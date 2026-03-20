@@ -45,16 +45,6 @@ This project uses a supermarket sales dataset to build a **Retail Intelligence S
 
 ---
 
-## ⚙️ Features
-
-- Clean and aesthetic UI
-- Real-time predictions
-- Multiple model comparison
-- Confidence percentage display
-- Handles categorical data using encoding
-
----
-
 ## 🖥️ How to Run the Project
 
 ### 1. Install dependencies

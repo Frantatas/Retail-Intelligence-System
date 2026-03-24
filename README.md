@@ -37,11 +37,14 @@ This project uses a supermarket sales dataset to build a **Retail Intelligence S
 - Features include:
   - Quantity
   - Unit Price
+  - Discount
+  - Wekeend
   - Product Line
   - Payment Method
   - Customer Type
   - Gender
   - Date (converted to Month)
+  - Recommended Model
 
 ---
 

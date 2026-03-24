@@ -22,15 +22,32 @@ def predict_all():
         quantity = int(entry_qty.get())
         unit_price = float(entry_price.get())
         month = int(entry_month.get())
+        customer = combo_cust.get()
+        gender = combo_gender.get()
+        category = combo_cat.get()
+        payment = combo_pay.get()
+        weekend = var_weekend.get()
+        discount = float(entry_discount.get())
+
+        if quantity <= 0:
+            messagebox.showerror("Input Error", "Quantity must be greater than 0.")
+            return
+
+        if unit_price <= 0:
+            messagebox.showerror("Input Error", "Unit price must be greater than 0.")
+            return
 
         if month < 1 or month > 12:
             messagebox.showerror("Input Error", "Month must be between 1 and 12.")
             return
 
-        customer = combo_cust.get()
-        gender = combo_gender.get()
-        category = combo_cat.get()
-        payment = combo_pay.get()
+        if not customer or not gender or not category or not payment:
+            messagebox.showerror("Input Error", "Please complete all dropdown selections.")
+            return
+        
+        if discount < 0 or discount > 100:
+            messagebox.showerror("Input Error", "Discount must be between 0 and 100.")
+            return
 
         input_data = pd.DataFrame([{
             "Quantity": quantity,
@@ -39,7 +56,9 @@ def predict_all():
             "Customer type": customer,
             "Gender": gender,
             "Product line": category,
-            "Payment": payment
+            "Payment": payment,
+            "Weekend" : weekend,
+            "Discount": discount
         }])
 
         input_encoded = pd.get_dummies(input_data)
@@ -49,13 +68,13 @@ def predict_all():
         for col in input_encoded.columns:
             if input_encoded[col].dtype == bool:
                 input_encoded[col] = input_encoded[col].astype(int)
+                
+        input_scaled = scaler.transform(input_encoded)
 
         lr_pred = lr_model.predict(input_encoded)[0]
         log_pred = log_model.predict(input_encoded)[0]
         dt_pred = dt_model.predict(input_encoded)[0]
         rf_pred = rf_model.predict(input_encoded)[0]
-
-        input_scaled = scaler.transform(input_encoded)
         nn_pred = nn_model.predict(input_scaled)[0]
 
         log_prob = log_model.predict_proba(input_encoded)[0][1]
@@ -68,19 +87,44 @@ def predict_all():
         lbl_dt.config(text=f"{'HIGH Sale' if dt_pred == 1 else 'LOW Sale'} ({dt_prob*100:.1f}%)")
         lbl_rf.config(text=f"{'HIGH Sale' if rf_pred == 1 else 'LOW Sale'} ({rf_prob*100:.1f}%)")
         lbl_nn.config(text=f"{'HIGH Sale' if nn_pred == 1 else 'LOW Sale'} ({nn_prob*100:.1f}%)")
+        
+        # Compare model confidences
+        model_probs = {
+            "Logistic Regression": log_prob,
+            "Decision Tree": dt_prob,
+            "Random Forest": rf_prob,
+            "Neural Network": nn_prob
+        }
 
+        # Find highest confidence
+        max_conf = max(model_probs.values())
+
+        # Use rounding to avoid float issues
+        best_models = [
+            model for model, prob in model_probs.items()
+            if round(prob, 3) == round(max_conf, 3)
+        ]
+
+        # Display result
+        if len(best_models) == 1:
+            text = f"Recommended Model: {best_models[0]} ({max_conf*100:.1f}% confidence)"
+        else:
+            models_str = ", ".join(best_models)
+            text = f"Top Models: {models_str} ({max_conf*100:.1f}% confidence)"
+
+        lbl_best.config(text=text)
+        
     except ValueError:
         messagebox.showerror("Input Error", "Please enter valid numeric values.")
     except Exception as e:
         messagebox.showerror("Error", str(e))
-
 
 # -----------------------------
 # Window
 # -----------------------------
 root = tk.Tk()
 root.title("Retail Intelligence System")
-root.geometry("820x680")
+root.geometry("820x1000")
 root.configure(bg="#1A1A1D")
 root.resizable(False, False)
 
@@ -156,28 +200,49 @@ def make_entry(parent):
 entry_qty = make_entry(frame_in)
 entry_price = make_entry(frame_in)
 entry_month = make_entry(frame_in)
+entry_discount = make_entry(frame_in)
 
-combo_cust = ttk.Combobox(frame_in, values=["Member", "Normal"], width=18, state="readonly", style="Custom.TCombobox")
+combo_cust = ttk.Combobox(frame_in, values=["Member", "Non-Member"], width=18, state="readonly", style="Custom.TCombobox")
 combo_gender = ttk.Combobox(frame_in, values=["Male", "Female"], width=18, state="readonly", style="Custom.TCombobox")
 combo_cat = ttk.Combobox(frame_in, values=product_options, width=18, state="readonly", style="Custom.TCombobox")
 combo_pay = ttk.Combobox(frame_in, values=payment_options, width=18, state="readonly", style="Custom.TCombobox")
 
-entry_qty.insert(0, "7")
-entry_price.insert(0, "74.69")
-entry_month.insert(0, "1")
+var_weekend = tk.IntVar()
 
-combo_cust.set("Member")
-combo_gender.set("Female")
-combo_cat.set("Food and beverages")
-combo_pay.set("Ewallet")
+entry_qty.insert(0,"")
+entry_price.insert(0, "")
+entry_month.insert(0, "")
+entry_discount.insert(0, "")
+
+combo_cust.set("Member/Non-Member")
+combo_gender.set("Select Gender")
+combo_cat.set("Select Category")
+combo_pay.set("Select Payment")
 
 add_field(frame_in, "Quantity:", 0, 0, entry_qty)
 add_field(frame_in, "Unit Price:", 1, 0, entry_price)
-add_field(frame_in, "Month (1-12):", 2, 0, entry_month)
+add_field(frame_in, "Discount (%):", 2, 0, entry_discount)
+add_field(frame_in, "Month (1-12):", 3, 0, entry_month)
+
 add_field(frame_in, "Customer Type:", 0, 2, combo_cust)
 add_field(frame_in, "Gender:", 1, 2, combo_gender)
 add_field(frame_in, "Product Line:", 2, 2, combo_cat)
 add_field(frame_in, "Payment:", 3, 2, combo_pay)
+
+
+tk.Checkbutton(
+    frame_in,
+    text="Weekend?",
+    variable=var_weekend,
+    bg="#242428",
+    fg="#F2F2F2",
+    activebackground="#242428",
+    activeforeground="#F2F2F2",
+    selectcolor="#1A1A1D",
+    font=("Segoe UI", 10),
+    highlightthickness=0,
+    bd=0
+).grid(row=4, column=0, padx=14, pady=8, sticky="w")
 
 # -----------------------------
 # Predict button
@@ -239,11 +304,20 @@ for i, (model_name, var_name, color) in enumerate(models):
         font=("Segoe UI", 10),
         bg=color,
         fg="#1A1A1A",
-        width=28,
+        width=20,
         anchor="w"
     )
     lbl.pack(side="left", padx=8, pady=10)
 
     globals()[var_name] = lbl
+
+lbl_best = tk.Label(
+    frame_out,
+    text="",
+    font=("Segoe UI", 12, "bold"),
+    fg="#FFD166",
+    bg="#242428"
+)
+lbl_best.grid(row=len(models)+1, column=0, columnspan=2, pady=12)
 
 root.mainloop()

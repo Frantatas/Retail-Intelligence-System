@@ -1,5 +1,6 @@
 import pandas as pd
 import joblib
+import numpy as np
 
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression, LogisticRegression
@@ -30,7 +31,9 @@ print(df.isnull().sum())
 # -------------------------
 df["Date"] = pd.to_datetime(df["Date"])
 df["Month"] = df["Date"].dt.month
-
+df["Weekend"] = (df["Date"].dt.dayofweek >= 5).astype(int)
+df["Discount"] = np.random.randint(0, 50, size=len(df))
+df["Sales"] = df["Quantity"] * df["Unit price"] * (1 - df["Discount"] / 100)
 # -------------------------
 # Targets
 # -------------------------
@@ -53,7 +56,9 @@ X = df[
         "Customer type",
         "Gender",
         "Product line",
-        "Payment"
+        "Payment",
+        "Weekend",
+        "Discount"
     ]
 ]
 
@@ -145,8 +150,9 @@ X_test_clf_scaled = scaler.transform(X_test_clf)
 
 print("Training Neural Network...")
 nn_model = MLPClassifier(
-    hidden_layer_sizes=(16, 8),
-    max_iter=300,
+    hidden_layer_sizes=(32, 16),
+    max_iter=500,
+    learning_rate_init=0.001,
     random_state=42
 )
 nn_model.fit(X_train_clf_scaled, y_train_clf)
